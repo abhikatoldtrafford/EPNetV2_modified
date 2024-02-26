@@ -9,6 +9,39 @@ Paper is now available in [IEEE Explore](https://ieeexplore.ieee.org/abstract/do
 Recently, fusing the LiDAR point cloud and camera image to improve the performance and robustness of 3D object detection has received more and more attention, as these two modalities naturally possess strong complementarity. In this paper, we propose EPNet++ for multi-modal 3D object detection by introducing a novel Cascade Bi-directional Fusion (CB-Fusion) module and a Multi-Modal Consistency (MC) loss. More concretely, the proposed CB-Fusion module enhances point features with plentiful semantic information absorbed from the image features in a cascade bi-directional interaction fusion manner, leading to more powerful and discriminative feature representations. The MC loss explicitly guarantees the consistency between predicted scores from two modalities to obtain more comprehensive and reliable confidence scores. The experimental results on the KITTI, JRDB and SUN-RGBD datasets demonstrate the superiority of EPNet++ over the state-of-the-art methods. Besides, we emphasize a critical but easily overlooked problem, which is to explore the performance and robustness of a 3D detector in a sparser scene. Extensive experiments present that EPNet++ outperforms the existing SOTA methods with remarkable margins in highly sparse point cloud cases, which might be an available direction to reduce the expensive cost of LiDAR sensors.
 
 ![image](img/framework.png)
+## Enhanced Image Segmentation Modules (lib\net\rpn.py)
+
+### Image_Seg_with_hybridAttention (Using HybridAttention)
+
+- Combines spatial and channel-wise attention mechanisms to enhance feature representation.
+- Employs a kernel size of 7 with padding of 3 for capturing broad spatial contexts without significantly increasing parameter count.
+- Aims to provide a nuanced understanding of the input feature map by considering both local and global dependencies.
+
+**Advantages**:
+- Enhanced feature representation by capturing both spatial and channel-wise dependencies, potentially leading to improved segmentation accuracy.
+
+**Disadvantages**:
+- Slightly more complex and computationally intensive due to the dual attention mechanism.
+
+**Architectural Changes**:
+- Introduction of the `HybridAttention` module combines spatial and channel-wise attention within the convolutional architecture.
+
+### Image_Seg_with_Attention (Using SimplifiedSelfAttention)
+
+- Implements channel-wise attention to emphasize relevant features across different channels of the feature map.
+- Efficiently captures channel-wise dependencies through a scaled dot-product attention mechanism.
+
+**Advantages**:
+- Improved modeling of global channel-wise relationships with a relatively small increase in computational complexity.
+
+**Disadvantages**:
+- May not capture spatial relationships as effectively as `HybridAttention`.
+
+**Architectural Changes**:
+- Integration of a `SimplifiedSelfAttention` module adds a focus on inter-channel relationships.
+
+**Differences from the Original Image_Seg Module**:
+- Both modules add attention mechanisms to the basic convolutional structure, allowing for better global context modeling and prioritization of informative channels within the feature map.
 
 ## TODO
 **Note:  We will integrate CB-Fusion into [OpenPCDet](https://github.com/open-mmlab/OpenPCDet) for training multiple categories. Besides, we will provide voxel-wise fusion based on CB-Fusion on both Waymo and KITTI dataset. We plan to release them in January, 2023. ** 

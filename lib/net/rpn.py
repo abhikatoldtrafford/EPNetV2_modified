@@ -35,7 +35,80 @@ class Image_Seg(nn.Module):
         out = self.conv2(out)
 
         return out
+class SimplifiedSelfAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.query_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.key_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
+        self.scale = (in_channels // 8) ** -0.5
 
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        query = self.query_conv(x).view(batch_size, -1, height * width).permute(0, 2, 1)
+        key = self.key_conv(x).view(batch_size, -1, height * width)
+        value = self.value_conv(x).view(batch_size, -1, height * width)
+
+        attention = torch.bmm(query, key) * self.scale
+        attention = F.softmax(attention, dim=-1)
+
+        out = torch.bmm(value, attention.permute(0, 2, 1))
+        out = out.view(batch_size, channels, height, width)
+        return out + x
+class Image_Seg_with_Attention(nn.Module):
+    def __init__(self, inplanes, outplanes, stride=1):
+        super(Image_Seg_with_Attention, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, inplanes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.attention = SimplifiedSelfAttention(inplanes)  # Inserted attention module here
+        self.conv2 = nn.Conv2d(inplanes, outplanes, kernel_size=3, stride=stride, padding=1, bias=False)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.attention(out)  # Applying attention to the features
+        out = self.conv2(out)
+        return out
+
+class HybridAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.spatial_conv = nn.Conv2d(in_channels, 1, kernel_size=7, padding=3, bias=False)
+        self.channel_mlp = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels, in_channels // 8, kernel_size=1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels // 8, in_channels, kernel_size=1, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        spatial_attention = self.spatial_conv(x)
+        spatial_attention = torch.sigmoid(spatial_attention)
+        
+        channel_attention = self.channel_mlp(x)
+
+        out = x * spatial_attention * channel_attention
+        return out
+
+class Image_Seg_with_hybridAttention(nn.Module):
+    def __init__(self, inplanes, outplanes, stride=1):
+        super(Image_Seg_with_Attention, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, inplanes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.attention = HybridAttention(inplanes)  # Inserted attention module here
+        self.conv2 = nn.Conv2d(inplanes, outplanes, kernel_size=3, stride=stride, padding=1, bias=False)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.attention(out)  # Applying attention to the features
+        out = self.conv2(out)
+        return out
 
 class RPN(nn.Module):
     def __init__(self, use_xyz = True, mode = 'TRAIN'):
