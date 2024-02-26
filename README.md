@@ -9,9 +9,9 @@ Paper is now available in [IEEE Explore](https://ieeexplore.ieee.org/abstract/do
 Recently, fusing the LiDAR point cloud and camera image to improve the performance and robustness of 3D object detection has received more and more attention, as these two modalities naturally possess strong complementarity. In this paper, we propose EPNet++ for multi-modal 3D object detection by introducing a novel Cascade Bi-directional Fusion (CB-Fusion) module and a Multi-Modal Consistency (MC) loss. More concretely, the proposed CB-Fusion module enhances point features with plentiful semantic information absorbed from the image features in a cascade bi-directional interaction fusion manner, leading to more powerful and discriminative feature representations. The MC loss explicitly guarantees the consistency between predicted scores from two modalities to obtain more comprehensive and reliable confidence scores. The experimental results on the KITTI, JRDB and SUN-RGBD datasets demonstrate the superiority of EPNet++ over the state-of-the-art methods. Besides, we emphasize a critical but easily overlooked problem, which is to explore the performance and robustness of a 3D detector in a sparser scene. Extensive experiments present that EPNet++ outperforms the existing SOTA methods with remarkable margins in highly sparse point cloud cases, which might be an available direction to reduce the expensive cost of LiDAR sensors.
 
 ![image](img/framework.png)
-## Enhanced Image Segmentation Modules (lib\net\rpn.py)
+## Enhanced Image Segmentation Modules (lib\net\pointnet2_msg.py)
 
-### Image_Seg_with_hybridAttention (Using HybridAttention)
+### BasicBlock_with_HybridAttention (Using HybridAttention)
 
 - Combines spatial and channel-wise attention mechanisms to enhance feature representation.
 - Employs a kernel size of 7 with padding of 3 for capturing broad spatial contexts without significantly increasing parameter count.
@@ -26,7 +26,7 @@ Recently, fusing the LiDAR point cloud and camera image to improve the performan
 **Architectural Changes**:
 - Introduction of the `HybridAttention` module combines spatial and channel-wise attention within the convolutional architecture.
 
-### Image_Seg_with_Attention (Using SimplifiedSelfAttention)
+### BasicBlock_with_SimplifiedSelfAttention (Using SimplifiedSelfAttention)
 
 - Implements channel-wise attention to emphasize relevant features across different channels of the feature map.
 - Efficiently captures channel-wise dependencies through a scaled dot-product attention mechanism.
@@ -40,7 +40,7 @@ Recently, fusing the LiDAR point cloud and camera image to improve the performan
 **Architectural Changes**:
 - Integration of a `SimplifiedSelfAttention` module adds a focus on inter-channel relationships.
 
-**Differences from the Original Image_Seg Module**:
+**Differences from the Original BasicBlock Module**:
 - Both modules add attention mechanisms to the basic convolutional structure, allowing for better global context modeling and prioritization of informative channels within the feature map.
 
 ## TODO

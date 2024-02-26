@@ -10,6 +10,46 @@ from lib.net.self_attention import PointContext3D
 
 
 BatchNorm2d = nn.BatchNorm2d
+class SimplifiedSelfAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.query_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.key_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
+        self.scale = (in_channels // 8) ** -0.5
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        query = self.query_conv(x).view(batch_size, -1, height * width).permute(0, 2, 1)
+        key = self.key_conv(x).view(batch_size, -1, height * width)
+        value = self.value_conv(x).view(batch_size, -1, height * width)
+
+        attention = torch.bmm(query, key) * self.scale
+        attention = F.softmax(attention, dim=-1)
+
+        out = torch.bmm(value, attention.permute(0, 2, 1))
+        out = out.view(batch_size, channels, height, width)
+        return out + x
+class HybridAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.spatial_conv = nn.Conv2d(in_channels, 1, kernel_size=7, padding=3, bias=False)
+        self.channel_mlp = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(in_channels, in_channels // 8, kernel_size=1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels // 8, in_channels, kernel_size=1, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        spatial_attention = self.spatial_conv(x)
+        spatial_attention = torch.sigmoid(spatial_attention)
+        
+        channel_attention = self.channel_mlp(x)
+
+        out = x * spatial_attention * channel_attention
+        return out
 
 def conv3x3(in_planes, out_planes, stride = 1):
     """3x3 convolution with padding"""
@@ -35,6 +75,42 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
         out = self.conv2(out)
 
+        return out
+class BasicBlock_with_HybridAttention(nn.Module):
+    def __init__(self, inplanes, outplanes, stride=1):
+        super(BasicBlock_with_HybridAttention, self).__init__()
+        self.conv1 = conv3x3(inplanes, inplanes, stride)
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.attention = HybridAttention(outplanes)
+        # Use conv3x3 function for the second convolution with doubled stride for downsampling
+        self.conv2 = conv3x3(inplanes, outplanes, 2*stride)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.attention(out)
+        out = self.conv2(out)
+        return out
+
+
+class BasicBlock_with_SimplifiedSelfAttention(nn.Module):
+    def __init__(self, inplanes, outplanes, stride=1):
+        super(BasicBlock_with_SimplifiedSelfAttention, self).__init__()
+        self.conv1 = conv3x3(inplanes, inplanes, stride)
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.relu = nn.ReLU(inplace=True)
+        self.attention = SimplifiedSelfAttention(outplanes)
+        # Use conv3x3 function for the second convolution with doubled stride for downsampling
+        self.conv2 = conv3x3(inplanes, outplanes, 2*stride)
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.attention(out)
+        out = self.conv2(out)
         return out
 
 class Fusion_Conv(nn.Module):
