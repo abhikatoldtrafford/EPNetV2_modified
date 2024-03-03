@@ -1,6 +1,8 @@
-#torch===1.2.0  (对PED和CYC影响很大!!!)
+#torch===1.2.0
 #torchvision===0.4.0
-opencv-python
+#opencv-python
+#conda create -n epnet python==3.8 pytorch==1.10.0 torchvision==0.11.0 torchaudio==0.10.0 cudatoolkit=11.3 -c pytorch -c conda-forge  
+#conda install opencv numpy numba cython pandas scipy scikit-image cudf -c numba -c conda-forge -c menpo -c rapidsai
 shapely
 Cython
 scipy
@@ -15,3 +17,5 @@ ninja
 fire
 numba==0.53.1
 easydict
+opencv-python
+numpy==1.21
