@@ -12,24 +12,52 @@ from lib.net.self_attention import PointContext3D
 BatchNorm2d = nn.BatchNorm2d
 class SimplifiedSelfAttention(nn.Module):
     def __init__(self, in_channels):
-        super().__init__()
-        self.query_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
-        self.key_conv = nn.Conv2d(in_channels, in_channels // 8, 1)
+        super(SimplifiedSelfAttention, self).__init__()
+        # Ensure there's at least 1 channel for the query, key, and value
+        reduced_channels = max(1, in_channels // 8)
+        self.query_conv = nn.Conv2d(in_channels, reduced_channels, 1)
+        self.key_conv = nn.Conv2d(in_channels, reduced_channels, 1)
         self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
-        self.scale = (in_channels // 8) ** -0.5
+        self.scale = reduced_channels ** -0.5
 
     def forward(self, x):
-        batch_size, channels, height, width = x.size()
-        query = self.query_conv(x).view(batch_size, -1, height * width).permute(0, 2, 1)
-        key = self.key_conv(x).view(batch_size, -1, height * width)
-        value = self.value_conv(x).view(batch_size, -1, height * width)
+        original_h, original_w = x.size(2), x.size(3)
+        expected_h, expected_w = 24, 80  # Set these based on your specific requirements
+
+        # Determine if downsampling is necessary based on the expected dimensions
+        downsampling_needed = original_h > expected_h or original_w > expected_w
+
+        if downsampling_needed:
+            # Calculate downsampling scale to achieve expected dimensions
+            scale_h = int(original_h / expected_h)
+            scale_w = int(original_w / expected_w)
+            # Apply pooling with calculated scale to downsample
+            x_downsampled = F.avg_pool2d(x, kernel_size=(scale_h, scale_w), stride=(scale_h, scale_w))
+        else:
+            x_downsampled = x
+
+        # Apply attention mechanism to downsampled tensor
+        batch_size, channels, height, width = x_downsampled.size()
+        query = self.query_conv(x_downsampled).view(batch_size, -1, height * width).permute(0, 2, 1)
+        key = self.key_conv(x_downsampled).view(batch_size, -1, height * width)
+        value = self.value_conv(x_downsampled).view(batch_size, -1, height * width)
 
         attention = torch.bmm(query, key) * self.scale
         attention = F.softmax(attention, dim=-1)
 
         out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch_size, channels, height, width)
-        return out + x
+
+        # Upsample the attention output back to original dimensions if downsampling was applied
+        if downsampling_needed:
+            out = F.interpolate(out, size=(original_h, original_w), mode='bilinear', align_corners=False)
+
+        # Verify and adjust if the output size does not match the original input size
+        if out.size(2) != original_h or out.size(3) != original_w:
+            print(f"Adjustment needed: Output size {out.size()} does not match input size {x.size()}.")
+            # Here you can apply additional adjustments if necessary
+
+        return out
 class HybridAttention(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
@@ -79,12 +107,12 @@ class BasicBlock(nn.Module):
 class BasicBlock_with_HybridAttention(nn.Module):
     def __init__(self, inplanes, outplanes, stride=1):
         super(BasicBlock_with_HybridAttention, self).__init__()
-        self.conv1 = conv3x3(inplanes, inplanes, stride)
-        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.conv1 = conv3x3(inplanes, outplanes, stride)
+        self.bn1 = nn.BatchNorm2d(outplanes)
         self.relu = nn.ReLU(inplace=True)
         self.attention = HybridAttention(outplanes)
         # Use conv3x3 function for the second convolution with doubled stride for downsampling
-        self.conv2 = conv3x3(inplanes, outplanes, 2*stride)
+        self.conv2 = conv3x3(outplanes, outplanes, 2*stride)
 
     def forward(self, x):
         out = self.conv1(x)
@@ -98,12 +126,12 @@ class BasicBlock_with_HybridAttention(nn.Module):
 class BasicBlock_with_SimplifiedSelfAttention(nn.Module):
     def __init__(self, inplanes, outplanes, stride=1):
         super(BasicBlock_with_SimplifiedSelfAttention, self).__init__()
-        self.conv1 = conv3x3(inplanes, inplanes, stride)
-        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.conv1 = conv3x3(inplanes, outplanes, stride)
+        self.bn1 = nn.BatchNorm2d(outplanes)
         self.relu = nn.ReLU(inplace=True)
         self.attention = SimplifiedSelfAttention(outplanes)
         # Use conv3x3 function for the second convolution with doubled stride for downsampling
-        self.conv2 = conv3x3(inplanes, outplanes, 2*stride)
+        self.conv2 = conv3x3(outplanes, outplanes, 2*stride)
 
     def forward(self, x):
         out = self.conv1(x)
@@ -326,7 +354,8 @@ class Pointnet2MSG(nn.Module):
                 cfg.LI_FUSION.IMG_CHANNELS[0] = cfg.LI_FUSION.IMG_CHANNELS[0] + 4
 
             for i in range(len(cfg.LI_FUSION.IMG_CHANNELS) - 1):
-                self.Img_Block.append(BasicBlock(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
+                # self.Img_Block.append(BasicBlock(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
+                self.Img_Block.append(BasicBlock_with_SimplifiedSelfAttention(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
                 if cfg.LI_FUSION.ADD_Image_Attention:
                     self.Fusion_Conv.append(
                             Atten_Fusion_Conv(cfg.LI_FUSION.IMG_CHANNELS[i + 1], cfg.LI_FUSION.POINT_CHANNELS[i],
