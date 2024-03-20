@@ -354,7 +354,7 @@ class Pointnet2MSG(nn.Module):
                 cfg.LI_FUSION.IMG_CHANNELS[0] = cfg.LI_FUSION.IMG_CHANNELS[0] + 4
 
             for i in range(len(cfg.LI_FUSION.IMG_CHANNELS) - 1):
-                # self.Img_Block.append(BasicBlock(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
+                #self.Img_Block.append(BasicBlock(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
                 self.Img_Block.append(BasicBlock_with_SimplifiedSelfAttention(cfg.LI_FUSION.IMG_CHANNELS[i], cfg.LI_FUSION.IMG_CHANNELS[i+1], stride=1))
                 if cfg.LI_FUSION.ADD_Image_Attention:
                     self.Fusion_Conv.append(
