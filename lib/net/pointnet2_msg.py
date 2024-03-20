@@ -11,7 +11,7 @@ from lib.net.self_attention import PointContext3D
 
 BatchNorm2d = nn.BatchNorm2d
 class SimplifiedSelfAttention(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, dropout_prob=0.25):
         super(SimplifiedSelfAttention, self).__init__()
         # Ensure there's at least 1 channel for the query, key, and value
         reduced_channels = max(1, in_channels // 8)
@@ -19,6 +19,9 @@ class SimplifiedSelfAttention(nn.Module):
         self.key_conv = nn.Conv2d(in_channels, reduced_channels, 1)
         self.value_conv = nn.Conv2d(in_channels, in_channels, 1)
         self.scale = reduced_channels ** -0.5
+
+        # Dropout layer
+        self.dropout = nn.Dropout(dropout_prob)
 
     def forward(self, x):
         original_h, original_w = x.size(2), x.size(3)
@@ -44,6 +47,9 @@ class SimplifiedSelfAttention(nn.Module):
 
         attention = torch.bmm(query, key) * self.scale
         attention = F.softmax(attention, dim=-1)
+
+        # Apply dropout to the attention scores
+        attention = self.dropout(attention)
 
         out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch_size, channels, height, width)
