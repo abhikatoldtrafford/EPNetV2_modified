@@ -171,7 +171,7 @@ RCNN:
 # general training config
 TRAIN:
     SPLIT: trainval
-    VAL_SPLIT: smallval
+    VAL_SPLIT: val
 
     LR: 0.0001
     LR_CLIP: 0.00001
