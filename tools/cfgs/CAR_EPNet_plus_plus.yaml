@@ -173,7 +173,7 @@ TRAIN:
     SPLIT: trainval
     VAL_SPLIT: val
 
-    LR: 0.001
+    LR: 0.0001
     LR_CLIP: 0.00001
     LR_DECAY: 0.5
     DECAY_STEP_LIST: [100, 150, 180, 200]
