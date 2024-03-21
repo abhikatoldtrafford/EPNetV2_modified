@@ -49,20 +49,15 @@ class SimplifiedSelfAttention(nn.Module):
         attention = F.softmax(attention, dim=-1)
 
         # Apply dropout to the attention scores
-        attention = self.dropout(attention)
+        # attention = self.dropout(attention)
 
         out = torch.bmm(value, attention.permute(0, 2, 1))
         out = out.view(batch_size, channels, height, width)
-
         # Upsample the attention output back to original dimensions if downsampling was applied
         if downsampling_needed:
             out = F.interpolate(out, size=(original_h, original_w), mode='bilinear', align_corners=False)
-
-        # Verify and adjust if the output size does not match the original input size
-        if out.size(2) != original_h or out.size(3) != original_w:
-            print(f"Adjustment needed: Output size {out.size()} does not match input size {x.size()}.")
-            # Here you can apply additional adjustments if necessary
-
+        out = self.dropout(out)
+        out = out + x
         return out
 class HybridAttention(nn.Module):
     def __init__(self, in_channels):
