@@ -26,7 +26,7 @@ parser.add_argument("--train_mode", type = str, default = 'rpn', required = True
 parser.add_argument("--batch_size", type = int, default = 16, required = True, help = "batch size for training")
 parser.add_argument("--epochs", type = int, default = 200, required = True, help = "Number of epochs to train for")
 
-parser.add_argument('--workers', type = int, default = 16, help = 'number of workers for dataloader')
+parser.add_argument('--workers', type = int, default = 8, help = 'number of workers for dataloader')
 parser.add_argument("--ckpt_save_interval", type = int, default = 5, help = "number of training epochs")
 parser.add_argument('--output_dir', type = str, default = None, help = 'specify an output directory if needed')
 parser.add_argument('--mgpus', action = 'store_true', default = False, help = 'whether to use multiple gpu')
